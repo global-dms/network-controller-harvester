@@ -24,7 +24,6 @@ import (
 // For example, the controller get VLAN ID from nad and add it to physical NIC attached with bridge.
 const (
 	ControllerName = "harvester-network-nad-controller"
-
 )
 
 type Handler struct {
@@ -42,14 +41,21 @@ func Register(ctx context.Context, management *config.Management) error {
 		nadCache:         nad.Cache(),
 	}
 
+	var mgmtNetwork network.Network
+	var err error
 	switch management.Options.MgmtNetworkType {
 	case "flannel", "canal":
-		mgmtNetwork, err := mgmt.NewFlannelNetwork(management.Options.MgmtNetworkDevice)
+		mgmtNetwork, err = mgmt.NewFlannelNetwork(management.Options.MgmtNetworkDevice)
 		if err != nil {
 			return err
 		}
-		handler.mgmtNetwork = mgmtNetwork
+	case "cilium":
+		mgmtNetwork, err = mgmt.NewCiliumNetwork(management.Options.MgmtNetworkDevice)
+		if err != nil {
+			return err
+		}
 	}
+	handler.mgmtNetwork = mgmtNetwork
 
 	nad.OnChange(ctx, ControllerName, handler.OnChange)
 	nad.OnRemove(ctx, ControllerName, handler.OnRemove)
@@ -92,7 +98,6 @@ func (h Handler) OnChange(key string, nad *nadv1.NetworkAttachmentDefinition) (*
 			return nil, err
 		}
 	}
-
 
 	if err := v.AddLocalArea(vlanID, layer3NetworkConf.CIDR); err != nil {
 		return nil, err

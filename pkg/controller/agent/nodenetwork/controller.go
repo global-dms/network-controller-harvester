@@ -53,14 +53,21 @@ func Register(ctx context.Context, management *config.Management) error {
 		recorder:         management.NewRecorder(ControllerName, "", ""),
 	}
 
+	var mgmtNetwork network.Network
+	var err error
 	switch management.Options.MgmtNetworkType {
 	case "flannel", "canal":
-		mgmtNetwork, err := mgmt.NewFlannelNetwork(management.Options.MgmtNetworkDevice)
+		mgmtNetwork, err = mgmt.NewFlannelNetwork(management.Options.MgmtNetworkDevice)
 		if err != nil {
 			return err
 		}
-		handler.mgmtNetwork = mgmtNetwork
+	case "cilium":
+		mgmtNetwork, err = mgmt.NewCiliumNetwork(management.Options.MgmtNetworkDevice)
+		if err != nil {
+			return err
+		}
 	}
+	handler.mgmtNetwork = mgmtNetwork
 
 	nns.OnChange(ctx, ControllerName, handler.OnChange)
 	nns.OnRemove(ctx, ControllerName, handler.OnRemove)
